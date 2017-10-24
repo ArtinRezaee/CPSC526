@@ -2,33 +2,46 @@ import socketserver
 import socket, threading
 import sys
 
-
 class MyTCPHandler(socketserver.BaseRequestHandler):
     BUFFER_SIZE = 4096
-    def handle(self):
+    threads = []
+    s = socket.socket()
+    
+    def setup(self):
         global address
         add = address
         global destPort
         dst = destPort
-        s = socket.socket()
-        s.connect((add,dst))
+        self.s.connect((add,dst))
+        t = threading.Thread(target = self.client2Server)
+        self.threads.append(t)
+        c = threading.Thread(target = self.server2Client)
+        self.threads.append(c)
+        t.start()
+        c.start()
+
+    def client2Server(self):
         while 1:
             data = self.request.recv(self.BUFFER_SIZE)
             if len(data) == self.BUFFER_SIZE:
-            		while 1:
-                		try:  # error means no more data
-                    			data += self.request.recv(self.BUFFER_SIZE, socket.MSG_DONTWAIT)
-                		except:
-                    			break
-            if len(data) == 0:
-            		break
-            dataClient = data.decode( "utf-8")
-            dataSrv = s.recv(1024).decode("utf-8")
-            # sending to our client which we are the server to
+                while 1:
+                    try:  # error means no more data
+                        data += self.request.recv(self.BUFFER_SIZE, socket.MSG_DONTWAIT)
+                    except:
+                        break
+                if len(data) == 0:
+                    break
+            dataClient = data.decode()
+            self.s.sendall(dataClient.encode())
+                
+    def server2Client(self):
+        while 1:
+            dataSrv = self.s.recv(1024).decode("utf-8")
             self.request.sendall( bytearray( "My server said: " + dataSrv, "utf-8"))
-            # sending to our server which we are the client to
-            s.sendall(dataClient.encode())
-            print("%s (%s) wrote: %s" % (self.client_address[0],threading.currentThread().getName(), dataClient.strip()))
+    
+#    def handle(self):
+##        while 1:
+##            print("%s (%s) wrote: %s" % (self.client_address[0],threading.currentThread().getName(), dataClient.strip()))
 
 
 address = ''
