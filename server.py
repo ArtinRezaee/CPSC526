@@ -37,6 +37,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         break
                 if len(data) == 0:
                     break
+            global logOption
+            logs = logOption
+            if logs == '-raw':
+                print("---> "+data.decode())
             # Port forwarding server sends received data from client to its server
             self.s.sendall(data)
 
@@ -45,7 +49,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             # Port forwarding server waits to receieve something from its server
             dataSrv = self.s.recv(1024).decode("utf-8")
             if dataSrv:
-                print("Hello")
+                global logOption
+                logs = logOption
+                if logs == '-raw':
+                    print("<--- "+dataSrv)
                 # Port forwarding server sends received data to its client
                 self.request.sendall( bytearray( "My server said: " + dataSrv, "utf-8"))
             else:
@@ -78,12 +85,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
 address = ''
+logOption = ''
 destPort = 0
 if __name__ == "__main__":
     if(len(sys.argv)<5):
         srcPort = int(sys.argv[1])
         address = sys.argv[2]
         destPort = int(sys.argv[3])
+    elif len(sys.argv)<6:
+        logOption = sys.argv[1]
+        srcPort = int(sys.argv[2])
+        address = sys.argv[3]
+        destPort = int(sys.argv[4])
     else:
         logOption = sys.argv[1]
         replaceOption = sys.argv[2]
