@@ -6,25 +6,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     BUFFER_SIZE = 4096
     threads = []
     s = socket.socket()
-#
-#    def setup(self):
-#        global address
-#        add = address
-#        global destPort
-#        dst = destPort
-#        try:
-#            print(add)
-#            print(dst)
-#            self.s.connect((add,dst))
-#        except:
-#            print("Server is already connected. Continue")
-#        print("end of setup")
-#
-#        c = threading.Thread(target = self.server2Client)
-#        self.threads.append(c)
-#        print("Starting the thread")
-#        c.start()
-#
     def client2Server(self):
         while 1:
             # Port forwarding server waits to receive something from its client
@@ -39,8 +20,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     break
             global logOption
             logs = logOption
+            clientData = data.decode()
             if logs == '-raw':
-                print("---> "+data.decode())
+                lines = clientData.split('\n')
+                for line in lines:
+                    print("---> "+line.strip())
             # Port forwarding server sends received data from client to its server
             self.s.sendall(data)
 
@@ -52,7 +36,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 global logOption
                 logs = logOption
                 if logs == '-raw':
-                    print("<--- "+dataSrv)
+                    lines = dataSrv.split('\n')
+                    for line in lines:
+                        print("<--- "+line.strip())
                 # Port forwarding server sends received data to its client
                 self.request.sendall( bytearray( "My server said: " + dataSrv, "utf-8"))
             else:
