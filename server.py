@@ -1,12 +1,24 @@
 import socketserver
 import socket, threading
 import sys
+from collections import deque
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
     BUFFER_SIZE = 4096
     threads = []
     s = socket.socket()
+
+    serverOutputs = deque()
+
+    totalConnections = 0
+    currentConnections = 0
+    forwardersReadCounter = 0
+
+    forwardersReadFlags = {}
+
+
     def client2Server(self):
+        global s
         while 1:
             # Port forwarding server waits to receive something from its client
             data = self.request.recv(self.BUFFER_SIZE)
@@ -28,6 +40,29 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             # Port forwarding server sends received data from client to its server
             self.s.sendall(data)
 
+    #def forward2Client(self):
+        # self.currentConnections += 1
+        # forwarderId = self.totalConnections
+        # self.totalConnections += 1
+        # self.forwardersReadFlags[forwarderId] = False
+
+        # while 1:
+        #     if not serverData.empty():
+        #         if self.forwardersReadFlags[forwarderId] == False:
+        #             if (self.forwardersReadCounter < self.currentConnections):
+        #                 self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+        #                 self.forwardersReadFlags[forwarderId] = True
+        #                 self.forwardersReadCounter += 1
+        #             else:
+        #                 self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+        #                 for forwarderId in self.forwardersReadFlags:
+        #                     forwarderReadFlags[forwarderId] = False
+        #                 self.forwardersReadCounter = 0
+        #                 self.serverOutputs.popleft()
+
+        # Port forwarding server sends received data to its client
+        
+
     def server2Client(self):
         while 1:
             # Port forwarding server waits to receieve something from its server
@@ -39,11 +74,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     lines = dataSrv.split('\n')
                     for line in lines:
                         print("<--- "+line.strip())
-                # Port forwarding server sends received data to its client
-                self.request.sendall( bytearray( "My server said: " + dataSrv, "utf-8"))
+                print(3)
+                self.serverOutputs.append(dataSrv)
             else:
                 break
-#
+
     def handle(self):
         while 1:
             global address
@@ -51,28 +86,38 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             global destPort
             dst = destPort
             try:
-#                print(add)
-#                print(dst)
                 self.s.connect((add,dst))
             except:
                 print("Server is already connected. Continue")
-#            print("end of setup")
+            
+            self.currentConnections += 1
+            forwarderId = self.totalConnections
+            self.totalConnections += 1
+            self.forwardersReadFlags[forwarderId] = False
 
-            c = threading.Thread(target = self.server2Client)
-            self.threads.append(c)
-#            print("Starting the thread")
-            c.start()
             t = threading.Thread(target = self.client2Server)
             self.threads.append(t)
             t.start()
-            while 1:
-                continue
 
+            while 1:
+                if self.serverOutputs:
+                    if self.forwardersReadFlags[forwarderId] == False:
+                        if (self.forwardersReadCounter < self.currentConnections):
+                            self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+                            self.forwardersReadFlags[forwarderId] = True
+                            self.forwardersReadCounter += 1
+                        else:
+                            self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+                            for forwarderId in self.forwardersReadFlags:
+                                forwarderReadFlags[forwarderId] = False
+                            self.forwardersReadCounter = 0
+                            self.serverOutputs.popleft()
 
 
 address = ''
 logOption = ''
 destPort = 0
+
 if __name__ == "__main__":
     if(len(sys.argv)<5):
         srcPort = int(sys.argv[1])
@@ -92,7 +137,7 @@ if __name__ == "__main__":
         address = sys.argv[6]
         destPort = int(sys.argv[7])
 
-
     HOST = "localhost"
     server = socketserver.ThreadingTCPServer((HOST, srcPort), MyTCPHandler)
+
     server.serve_forever()
