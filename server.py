@@ -3,6 +3,8 @@ import socket, threading
 import sys
 from collections import deque
 import time
+import string
+import re, binascii
 
 # Global variables to be used by the threads
 totalConnections = 0
@@ -44,11 +46,23 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             logs = logOption
             # Decode clientData to use for input modification
             clientData = data.decode()
+            
+
+            regex = re.compile('-auto\d+')
+            match = regex.match(logs)
             # if the command option is raw, clean up the input and simply log it on the port forwarding server
             if logs == '-raw':
                 lines = clientData.split('\n')
                 for line in lines:
                     print("---> "+line.strip())
+
+            elif logs == '-strip':
+                lines = clientData.split('\n')
+                for line in lines:
+                    for character in string.printable:
+                        line = line.replace(character, ".")
+                    print("<--- "+line.strip())
+
             # if command is hex
             elif logs == "-hex":
                 hexCounter = 0
@@ -84,9 +98,49 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     else:
                         formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                     chars += remainingChars[i]
+
+            elif not match == None:
+                lines = clientData
+                num_bytes = int(logs.replace("-auto",""))
+                counter = 0
+                temp = ""
+                for character in lines:
+                    num_value = int(binascii.hexlify(str.encode(character)), 16)
+                    if(counter < num_bytes):
+                        counter += 1
+                        if num_value == 92:
+                            temp = temp + "\\\\"
+                        elif num_value == 9:
+                            temp = temp + "\\t"
+                        elif num_value == 10:
+                            temp = temp + "\\n"
+                        elif num_value == 13:
+                            temp = temp + "\\r"
+                        elif num_value <= 127 and num_value >= 32:
+                            temp = temp + character
+                        else:
+                            temp = temp + "/" + str(num_value)
+                    else:
+                        print("<--- " + temp)
+                        counter = 1
+                        temp = ""
+                        if num_value == 92:
+                            temp = temp + "\\\\"
+                        elif num_value == 9:
+                            temp = temp + "\\t"
+                        elif num_value == 10:
+                            temp = temp + "\\n"
+                        elif num_value == 13:
+                            temp = temp + "\\r"
+                        elif num_value <= 127 and num_value >= 32:
+                            temp = temp + character
+                        else:
+                            temp = temp + "/" + str(num_value)
+
             # Port forwarding server sends received data from client to its server
             global replaceOption
             replaceOpt = replaceOption
+            
             # if there is a replace option, loop through the lines of data, find that word and replace it with new word and send it to the client otherwise send the data as is
             if replaceOpt == '-replace':
                 lines = clientData.split('\n')
@@ -155,11 +209,21 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             if dataSrv:
                 global logOption
                 logs = logOption
+                
+                regex = re.compile('-auto\d+')
+                match = regex.match(logs)
                 if logs == '-raw':
                     lines = dataSrv.split('\n')
                     for line in lines:
                         print("<--- "+line.strip())
-            
+
+                elif logs == '-strip':
+                    lines = dataSrv.split('\n')
+                    for line in lines:
+                        for character in string.printable:
+                            line = line.replace(character, ".")
+                        print("<--- "+line.strip())
+
                 elif logs == "-hex":
                     hexCounter = 0
                     remainingChars = ''
@@ -191,6 +255,45 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         else:
                             formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                         chars += remainingChars[i]
+
+                elif not match == None:
+                    lines = dataSrv
+                    num_bytes = int(logs.replace("-auto",""))
+                    counter = 0
+                    temp = ""
+                    for character in lines:
+                        num_value = int(binascii.hexlify(str.encode(character)), 16)
+                        if(counter < num_bytes):
+                            counter += 1
+                            if num_value == 92:
+                                temp = temp + "\\\\"
+                            elif num_value == 9:
+                                temp = temp + "\\t"
+                            elif num_value == 10:
+                                temp = temp + "\\n"
+                            elif num_value == 13:
+                                temp = temp + "\\r"
+                            elif num_value <= 127 and num_value >= 32:
+                                temp = temp + character
+                            else:
+                                temp = temp + "/" + str(num_value)
+                        else:
+                            print("<--- " + temp)
+                            counter = 1
+                            temp = ""
+                            if num_value == 92:
+                                temp = temp + "\\\\"
+                            elif num_value == 9:
+                                temp = temp + "\\t"
+                            elif num_value == 10:
+                                temp = temp + "\\n"
+                            elif num_value == 13:
+                                temp = temp + "\\r"
+                            elif num_value <= 127 and num_value >= 32:
+                                temp = temp + character
+                            else:
+                                temp = temp + "/" + str(num_value)
+
                 with serverReadLock:
                     global replaceOption
                     replaceOpt = replaceOption
