@@ -59,8 +59,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             elif logs == '-strip':
                 lines = clientData.split('\n')
                 for line in lines:
-                    for character in string.printable:
-                        line = line.replace(character, ".")
+                    for character in line:
+                        if character not in string.printable:
+                            line = line.replace(character, ".")
                     print("<--- "+line.strip())
 
             # if command is hex
@@ -220,8 +221,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 elif logs == '-strip':
                     lines = dataSrv.split('\n')
                     for line in lines:
-                        for character in string.printable:
-                            line = line.replace(character, ".")
+                        for character in line:
+                            if character not in string.printable:
+                                line = line.replace(character, ".")
                         print("<--- "+line.strip())
 
                 elif logs == "-hex":
