@@ -55,7 +55,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 lines = clientData.split('\n')
                 for line in lines:
                     print("---> "+line.strip())
-
+        # Strip command. Go through the line and replace non printables with dots
             elif logs == '-strip':
                 lines = clientData.split('\n')
                 for line in lines:
@@ -99,11 +99,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                     chars += remainingChars[i]
 
+            # AutoN command
             elif not match == None:
                 lines = clientData
+                # Number of bytes to divide to
                 num_bytes = int(logs.replace("-auto",""))
                 counter = 0
                 temp = ""
+                # read charactr by character, and determine if characters are ascii or not
                 for character in lines:
                     num_value = int(binascii.hexlify(str.encode(character)), 16)
                     if(counter < num_bytes):
@@ -342,19 +345,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             
             while 1:
                 continue
-                # if self.serverOutputs:
-                #     if self.forwardersReadFlags[forwarderId] == False:
-                #         print(str(self.forwardersReadCounter) + "\t" + str(self.currentConnections - 1))
-                #         if (self.forwardersReadCounter < (self.currentConnections - 1)):
-                #             self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                #             self.forwardersReadFlags[forwarderId] = True
-                #             self.forwardersReadCounter += 1
-                #         else:
-                #             print('last forward')
-                #             self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                #             self.forwardersReadFlags.fromkeys(self.forwardersReadFlags, False)
-                #             self.forwardersReadCounter = 0
-                #             self.serverOutputs.popleft()
 
 
 address = ''
