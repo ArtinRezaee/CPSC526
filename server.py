@@ -3,20 +3,20 @@ import socket, threading
 import sys
 from collections import deque
 
+totalConnections = 0
+currentConnections = 0
+serverOutputs = deque()
+forwardersReadCounter = 0
+forwardersReadFlags = {}
+
+forwardingLock = threading.Lock()
+setupLock = threading.Lock()
+serverReadLock = threading.Lock()
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
     BUFFER_SIZE = 4096
     threads = []
     s = socket.socket()
-
-    serverOutputs = deque()
-
-    totalConnections = 0
-    currentConnections = 0
-    forwardersReadCounter = 0
-
-    forwardersReadFlags = {}
-
 
     def client2Server(self):
         global s
@@ -75,27 +75,43 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.s.sendall(data)
 
     def forward2Client(self):
-         self.currentConnections += 1
-         forwarderId = self.totalConnections
-         self.totalConnections += 1
-         self.forwardersReadFlags[forwarderId] = False
-         while 1:
-             if self.serverOutputs:
-                 if self.forwardersReadFlags[forwarderId] == False:
-                     if (self.forwardersReadCounter < self.currentConnections-1):
-                         self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                         self.forwardersReadFlags[forwarderId] = True
-                         self.forwardersReadCounter += 1
-                     else:
-                         self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                         self.forwardersReadFlags[forwarderId] = False
-                         self.forwardersReadCounter = 0
-                         self.serverOutputs.popleft()
+        global totalConnections
+        global currentConnections
+        global serverOutputs
+        global forwardersReadCounter
+        global forwardersReadFlags
+
+        global totalConnectionsLock
+        global currentConnectionsLock
+
+
+        setupLock.acquire()
+        currentConnections += 1
+        forwarderId = totalConnections
+        totalConnections += 1
+        forwardersReadFlags[forwarderId] = False
+        setupLock.release()
+
+        while 1:
+            with serverReadLock:
+                if serverOutputs:
+                    with forwardingLock:
+                        if forwardersReadFlags[forwarderId] == False:
+                            if (forwardersReadCounter < (currentConnections - 1)):
+                                self.request.sendall( bytearray( "My server said: " + serverOutputs[0], "utf-8"))
+                                forwardersReadFlags[forwarderId] = True
+                                forwardersReadCounter += 1
+                            else:
+                                self.request.sendall( bytearray( "My server said: " + serverOutputs[0], "utf-8"))
+                                forwardersReadFlags = forwardersReadFlags.fromkeys(forwardersReadFlags, False)
+                                forwardersReadCounter = 0
+                                serverOutputs.popleft()
 
         # Port forwarding server sends received data to its client
         
 
     def server2Client(self):
+        global serverOutputs
         while 1:
             # Port forwarding server waits to receieve something from its server
             dataSrv = self.s.recv(1024).decode("utf-8")
@@ -138,7 +154,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         else:
                             formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                         chars += remainingChars[i]
-                self.serverOutputs.append(dataSrv)
+                with serverReadLock:
+                    serverOutputs.append(dataSrv)
+
             else:
                 break
 
@@ -152,11 +170,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 self.s.connect((add,dst))
             except:
                 print("Server is already connected. Continue")
-            
-            self.currentConnections += 1
-            forwarderId = self.totalConnections
-            self.totalConnections += 1
-            self.forwardersReadFlags[forwarderId] = False
 
             t = threading.Thread(target = self.client2Server)
             self.threads.append(t)
@@ -171,19 +184,20 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             f.start()
             
             while 1:
-#                continue
-                if self.serverOutputs:
-                    if self.forwardersReadFlags[forwarderId] == False:
-                        if (self.forwardersReadCounter < self.currentConnections):
-                            self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                            self.forwardersReadFlags[forwarderId] = True
-                            self.forwardersReadCounter += 1
-                        else:
-                            self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
-                            for forwarderId in self.forwardersReadFlags:
-                                forwarderReadFlags[forwarderId] = False
-                            self.forwardersReadCounter = 0
-                            self.serverOutputs.popleft()
+                continue
+                # if self.serverOutputs:
+                #     if self.forwardersReadFlags[forwarderId] == False:
+                #         print(str(self.forwardersReadCounter) + "\t" + str(self.currentConnections - 1))
+                #         if (self.forwardersReadCounter < (self.currentConnections - 1)):
+                #             self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+                #             self.forwardersReadFlags[forwarderId] = True
+                #             self.forwardersReadCounter += 1
+                #         else:
+                #             print('last forward')
+                #             self.request.sendall( bytearray( "My server said: " + self.serverOutputs[0], "utf-8"))
+                #             self.forwardersReadFlags.fromkeys(self.forwardersReadFlags, False)
+                #             self.forwardersReadCounter = 0
+                #             self.serverOutputs.popleft()
 
 
 address = ''
