@@ -54,13 +54,13 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 chars = ''
                 for i in range(0,len(remainingChars)):
                     if (i%16 == 0 and not i == 0):
-                        print("<--- "+hex(hexCounter)[2:].zfill(8),end='   ')
+                        print("---> "+hex(hexCounter)[2:].zfill(8),end='   ')
                         print(formattedLine+'|'+chars+'|')
                         hexCounter += 16
                         formattedLine =''
                         chars=''
                     elif i+1 == len(remainingChars):
-                        print("<--- "+hex(hexCounter)[2:].zfill(8),end='   ')
+                        print("---> "+hex(hexCounter)[2:].zfill(8),end='   ')
                         spaces = 70 - int(len(formattedLine+'|'+chars+'|'))
                         print(formattedLine+' '*spaces+'|'+chars+'|')
                         hexCounter += 16
@@ -72,7 +72,20 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                     chars += remainingChars[i]
             # Port forwarding server sends received data from client to its server
-            self.s.sendall(data)
+            global replaceOption
+            replaceOpt = replaceOption
+            if replaceOpt == '-replace':
+                lines = clientData.split('\n')
+                replacedData = ''
+                for line in lines:
+                    if replace in line:
+                        line = line.replace(replace,replaceWith)
+                        replacedData += line+'\n'
+                    else:
+                        replacedData += line+'\n'
+                self.s.sendall(replacedData.encode())
+            else:
+                self.s.sendall(data)
 
     def forward2Client(self):
         global totalConnections
@@ -98,18 +111,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     with forwardingLock:
                         if forwardersReadFlags[forwarderId] == False:
                             if (forwardersReadCounter < (currentConnections - 1)):
-                                self.request.sendall( bytearray( "My server said: " + serverOutputs[0], "utf-8"))
+                                self.request.sendall( bytearray(serverOutputs[0], "utf-8"))
                                 forwardersReadFlags[forwarderId] = True
                                 forwardersReadCounter += 1
                             else:
-                                self.request.sendall( bytearray( "My server said: " + serverOutputs[0], "utf-8"))
+                                self.request.sendall( bytearray(serverOutputs[0], "utf-8"))
                                 forwardersReadFlags = forwardersReadFlags.fromkeys(forwardersReadFlags, False)
                                 forwardersReadCounter = 0
                                 serverOutputs.popleft()
 
-        # Port forwarding server sends received data to its client
-        
-
+    # Port forwarding server sends received data to its client
     def server2Client(self):
         global serverOutputs
         while 1:
@@ -155,8 +166,20 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                             formattedLine += hex(ord(remainingChars[i]))[2:].zfill(2)+' '
                         chars += remainingChars[i]
                 with serverReadLock:
-                    serverOutputs.append(dataSrv)
-
+                    global replaceOption
+                    replaceOpt = replaceOption
+                    if replaceOpt == '-replace':
+                        lines = dataSrv.split('\n')
+                        replacedData = ''
+                        for line in lines:
+                            if replace in line:
+                                line = line.replace(replace,replaceWith)
+                                replacedData += line+'\n'
+                            else:
+                                replacedData += line+'\n'
+                        serverOutputs.append(replacedData)
+                    else:
+                        serverOutputs.append(dataSrv)
             else:
                 break
 
