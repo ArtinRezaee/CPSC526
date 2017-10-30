@@ -2,6 +2,7 @@ import socketserver
 import socket, threading
 import sys
 from collections import deque
+import time
 
 # Global variables to be used by the threads
 totalConnections = 0
@@ -25,6 +26,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     # Forwarding server sends info to server
     def client2Server(self):
         global s
+        global address
+        ad = address
+        print("New Connection: ", time.strftime("%Y-%m-%d %H:%M"),", from",ad)
         while 1:
             # Port forwarding server waits to receive something from its client
             data = self.request.recv(self.BUFFER_SIZE)
@@ -218,15 +222,17 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             except:
                 print("Server is already connected. Continue")
             
-            # start reader and writer threads
+            # start client thread
             t = threading.Thread(target = self.client2Server)
             self.threads.append(t)
             t.start()
             
+            # start writer thread(server thread)
             c = threading.Thread(target = self.server2Client)
             self.threads.append(c)
             c.start()
             
+            # start reader thread
             f = threading.Thread(target = self.forward2Client)
             self.threads.append(f)
             f.start()
@@ -251,6 +257,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 address = ''
 logOption = ''
 destPort = 0
+replaceOption = ''
 
 if __name__ == "__main__":
     # getting the arguments when server is running with no options
