@@ -3,6 +3,7 @@ import os
 import random
 import string
 import hashlib
+import sys
 
 if __name__ == "__main__":
     if(len(sys.argv) == 6):
@@ -15,7 +16,7 @@ if __name__ == "__main__":
         host, port = destination.split(':')
 
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connect.connect((host,port))
+        client.connect((host,int(port)))
         nonce = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
         client.sendall((cipher + "," + nonce).encode('utf-8'))
 
