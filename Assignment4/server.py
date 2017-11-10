@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
                 encryptor = crypto.encryptor()
                 decryptor = crypto.decryptor()
-                client_socket.send((encryptor.update(padded_data) + encryptor.finalize()).encode('utf-8'))
+                client_socket.send((encryptor.update(padded_data.encode('utf-8')) + encryptor.finalize()).encode('utf-8'))
 
 
 
