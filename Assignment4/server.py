@@ -59,14 +59,12 @@ if __name__ == "__main__":
 #                                new_key += str(padding_needed)
 #                        key = new_key
 
-                iv = hashlib.sha256((key+nonce+'IV').encode('utf-8')).digest()
+                iv = hashlib.sha256((key+nonce+'IV').encode('utf-8')).digest()[:16]
                 sk = hashlib.sha256((key+nonce+'SK').encode('utf-8')).digest()
-                print("asdf")
                 crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
                 encryptor = crypto.encryptor()
                 decryptor = crypto.decryptor()
-                client_socket.send((encryptor.update(padded_data.encode('utf-8')) + encryptor.finalize()).encode('utf-8'))
-
+                client_socket.send(encryptor.update(padded_data) + encryptor.finalize())
 
 
 

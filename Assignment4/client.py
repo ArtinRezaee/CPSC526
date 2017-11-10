@@ -41,7 +41,7 @@ def recv(size, cipher):
     elif(cipher == 'aes256'):
         data = client.recv(size).decode('utf-8')
         
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()
+        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
         print(sess_key)
         print(iv)
