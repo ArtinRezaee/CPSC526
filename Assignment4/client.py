@@ -9,14 +9,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
 
-def send(msg, cipher):
+def send(msg, cipher_type):
     global key, nonce, client
-    if(cipher == 'null'):
+    if(cipher_type == 'null'):
         client.sendall(msg.encode('utf-8'))
     
-    elif(cipher == 'aes128'):
+    elif(cipher_type == 'aes128'):
         pass
-    elif(cipher == 'aes256'):
+    elif(cipher_type == 'aes256'):
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
         
@@ -31,14 +31,14 @@ def send(msg, cipher):
         
         client.sendall(encrypted_msg.encode('utf-8'))
 
-def recv(size, cipher):
+def recv(size, cipher_type):
     global key, nonce, client
-    if(cipher == 'null'):
+    if(cipher_type == 'null'):
         msg = client.recv(size).decode('utf-8')
     
-    elif(cipher == 'aes128'):
+    elif(cipher_type == 'aes128'):
         pass
-    elif(cipher == 'aes256'):
+    elif(cipher_type == 'aes256'):
         data = client.recv(size).decode('utf-8')
         
         iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
@@ -46,12 +46,13 @@ def recv(size, cipher):
         print(sess_key)
         print(iv)
         backend = default_backend()
-        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
 
+        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
         
         unpadder = padding.PKCS7(128).unpadder()
+        print("decrypted_data:" + str(decrypted_data))
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
         msg = unpadded_data
     return msg
