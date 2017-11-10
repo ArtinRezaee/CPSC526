@@ -4,6 +4,10 @@ import sys
 import hashlib
 import random
 import string
+from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
 
 if __name__ == "__main__":
     HOST, PORT, key = "localhost", int(sys.argv[1]), sys.argv[2]
@@ -20,7 +24,6 @@ if __name__ == "__main__":
         if e.errno == 98:
             print("Port is already in use")
 
-
     try:
         while True:
             # Accept new clients and prompt them to login
@@ -30,12 +33,55 @@ if __name__ == "__main__":
             if cipher == 'null':
                 auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
                 client_socket.send(auth_token.encode('utf-8'))
+            else:
+                backend = default_backend()
+                IV = None
+                SK = None
+                if cipher == 'aes128':
+                    auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
+                    padder = padding.PKCS7(128).padder()
+                    unpadder = padding.PKCS7(128).unpadder()
+                    padded_data = padder.update(auth_token.encode('utf-8'))
+                    padded_data += padder.finalize()
+                else:
+                    auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32))
+                    padder = padding.PKCS7(256).padder()
+                    unpadder = padding.PKCS7(256).unpadder()
+                    padded_data = padder.update(auth_token.encode('utf-8'))
+                    padded_data += padder.finalize()
+
+#                    if len(key) < 16:
+#                        padding_needed = 16 - len(key)
+#                        new_key = ""
+#                        for i in range(16):
+#                            if i < len(key)-1:
+#                                new_key += key[i]
+#                            else:
+#                                new_key += str(padding_needed)
+#                        key = new_key
+
+                iv = (hashlib().sha256()).update(key+nonce+'IV').digest()
+                sk = (hashlib().sha256()).update(key+nonce+'SK').digest()
+                crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
+                encryptor = crypto.encryptor()
+                decryptor = crypto.decryptor()
+                client_socket.send((encryptor.update(padded_data) + encryptor.finalize()).encode('utf-8'))
+
+
+
+
+            
+            
+            
             while True:
                 # Recieve data from client
                 data = client_socket.recv(128).decode('utf8').strip()
                 if not loggedIn:
                     hash_auth = hashlib.sha256()
                     hash_auth.update((auth_token+key).encode('utf-8'))
+                    if not cipher == 'null':
+                        padded_data = decryptor.update(data) + decryptor.finalize()
+                        data = unpadder.update(padded_data) + unpadder.finalize()
                     # Check user's credintials
                     if hash_auth.hexdigest() == data:
                         loggedIn = True
