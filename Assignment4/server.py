@@ -43,6 +43,13 @@ if __name__ == "__main__":
                     unpadder = padding.PKCS7(128).unpadder()
                     padded_data = padder.update(auth_token.encode('utf-8'))
                     padded_data += padder.finalize()
+                else:
+                    auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32))
+                    padder = padding.PKCS7(256).padder()
+                    unpadder = padding.PKCS7(256).unpadder()
+                    padded_data = padder.update(auth_token.encode('utf-8'))
+                    padded_data += padder.finalize()
+
 #                    if len(key) < 16:
 #                        padding_needed = 16 - len(key)
 #                        new_key = ""
