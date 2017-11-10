@@ -20,8 +20,8 @@ def send(msg, cipher):
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
         
-        iv = hashlib.sha256().update(key + nonce + "IV").digest()
-        sess_key = hashlib.sha256().update(key + nonce + "SK").digest()
+        iv = (hashlib.sha256().update((key + nonce + "IV").encode('utf-8'))).digest()
+        sess_key = (hashlib.sha256().update((key + nonce + "SK").encode('utf-8'))).digest()
         
         cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
@@ -39,8 +39,8 @@ def recv(size, cipher):
     elif(cipher == 'aes256'):
         data = client.recv(size).decode('utf-8')
         
-        iv = hashlib.sha256().update(key + nonce + "IV").digest()
-        sess_key = hashlib.sha256().update(key + nonce + "SK").digest()
+        iv = (hashlib.sha256().update((key + nonce + "IV").encode('utf-8'))).digest()
+        sess_key = (hashlib.sha256().update((key + nonce + "SK").encode('utf-8'))).digest()
         
         cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()

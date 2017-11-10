@@ -4,7 +4,6 @@ import sys
 import hashlib
 import random
 import string
-from Crypto.Cipher import AES
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
@@ -62,6 +61,7 @@ if __name__ == "__main__":
 
                 iv = (hashlib().sha256()).update(key+nonce+'IV').digest()
                 sk = (hashlib().sha256()).update(key+nonce+'SK').digest()
+                print("asdf")
                 crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
                 encryptor = crypto.encryptor()
                 decryptor = crypto.decryptor()
@@ -109,12 +109,12 @@ if __name__ == "__main__":
     except Exception as err:
         print(err)
 
-# close clients socket
-client_socket.close()
-# close the server socket
-server.close()
-# terminate the program
-sys.exit()
+    # close clients socket
+    client_socket.close()
+    # close the server socket
+    server.close()
+    # terminate the program
+    sys.exit()
 
 
 
