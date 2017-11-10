@@ -8,6 +8,53 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
+
+def send(msg, cipher_type):
+    global key, nonce, client_socket
+    if(cipher_type == 'null'):
+        client_socket.send(msg.encode('utf-8'))
+    
+    elif(cipher_type == 'aes128'):
+        pass
+    elif(cipher_type == 'aes256'):
+        padder = padding.PKCS7(128).padder()
+        padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
+        
+        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+        backend = default_backend()
+        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+        encryptor = cipher.encryptor()
+        encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+        
+        client_socket.send(encrypted_msg)
+
+def recv(size, cipher_type):
+    global key, nonce, client_socket
+    if(cipher_type == 'null'):
+        msg = client.recv(size).decode('utf-8')
+    
+    elif(cipher_type == 'aes128'):
+        pass
+    elif(cipher_type == 'aes256'):
+        data = client_socket.recv(size)
+        
+        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+        backend = default_backend()
+        
+        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+        decryptor = cipher.decryptor()
+        decrypted_data = decryptor.update(data) + decryptor.finalize()
+        
+        unpadder = padding.PKCS7(128).unpadder()
+        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        msg = unpadded_data
+    return msg
+
+def encrypt(msg):
+    pass
+
 if __name__ == "__main__":
     HOST, PORT, key = "localhost", int(sys.argv[1]), sys.argv[2]
     # Boolan to see if user is logged in
@@ -23,75 +70,31 @@ if __name__ == "__main__":
         if e.errno == 98:
             print("Port is already in use")
 
-    try:
+    while True:
+        # Accept new clients and prompt them to login
+        client_socket, info= server.accept()
+        data = client_socket.recv(128).decode('utf8').strip()
+        cipher,nonce = data.split(',')
+        auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
+        send(auth_token, cipher)
+
         while True:
-            # Accept new clients and prompt them to login
-            client_socket, info= server.accept()
-            data = client_socket.recv(128).decode('utf8').strip()
-            cipher,nonce = data.split(',')
-            if cipher == 'null':
-                auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
-                client_socket.send(auth_token.encode('utf-8'))
-            else:
-                backend = default_backend()
-                IV = None
-                SK = None
-                if cipher == 'aes128':
-                    auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
-                    padder = padding.PKCS7(128).padder()
-                    unpadder = padding.PKCS7(128).unpadder()
-                    padded_data = padder.update(auth_token.encode('utf-8'))
-                    padded_data += padder.finalize()
+            # Recieve data from client
+            data = recv(128,cipher)
+            if not loggedIn:
+                hash_auth = hashlib.sha256()
+                hash_auth.update((auth_token+key).encode('utf-8'))
+                # Check user's credintials
+                print(data)
+                if hash_auth.hexdigest() == data.decode('utf-8'):
+                    loggedIn = True
+                    # Prompt user to enter a command
+                    send('Welcome to the back-door server\nEnter your commands:\n', cipher)
                 else:
-                    auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(32))
-                    padder = padding.PKCS7(256).padder()
-                    unpadder = padding.PKCS7(256).unpadder()
-                    padded_data = padder.update(auth_token.encode('utf-8'))
-                    padded_data += padder.finalize()
-
-#                    if len(key) < 16:
-#                        padding_needed = 16 - len(key)
-#                        new_key = ""
-#                        for i in range(16):
-#                            if i < len(key)-1:
-#                                new_key += key[i]
-#                            else:
-#                                new_key += str(padding_needed)
-#                        key = new_key
-
-                iv = hashlib.sha256((key+nonce+'IV').encode('utf-8')).digest()[:16]
-                sk = hashlib.sha256((key+nonce+'SK').encode('utf-8')).digest()
-                crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
-                encryptor = crypto.encryptor()
-                decryptor = crypto.decryptor()
-                message = encryptor.update(padded_data) + encryptor.finalize()
-                print(message)
-                client_socket.send(message)
-
-
-
-            
-            
-            
-            while True:
-                # Recieve data from client
-                data = client_socket.recv(128).decode('utf8').strip()
-                if not loggedIn:
-                    hash_auth = hashlib.sha256()
-                    hash_auth.update((auth_token+key).encode('utf-8'))
-                    if not cipher == 'null':
-                        padded_data = decryptor.update(data) + decryptor.finalize()
-                        data = unpadder.update(padded_data) + unpadder.finalize()
-                    # Check user's credintials
-                    if hash_auth.hexdigest() == data:
-                        loggedIn = True
-                        # Prompt user to enter a command
-                        client_socket.send(b'Welcome to the back-door server\nEnter your commands:\n')
-                    else:
-                        # Terminate client socket if wrong password is inputted
-                        client_socket.send(b'Wrong password! bye\n')
-                        client_socket.close()
-                        break
+                    # Terminate client socket if wrong password is inputted
+                    send('Wrong password! bye\n', cipher)
+                    client_socket.close()
+                    break
 #                else:
 #                    # Interpret user info by matching it with one of the definitions in the variable
 #                    args = data.split()
@@ -106,8 +109,6 @@ if __name__ == "__main__":
 #                            client_socket.send(b'\033[91mNo such command\n\033[0m')
 #                        else:
 #                            interpretInput[args[0]](client_socket,args)
-    except Exception as err:
-        print(err)
 
     # close clients socket
     client_socket.close()

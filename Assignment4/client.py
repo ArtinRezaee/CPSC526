@@ -22,14 +22,12 @@ def send(msg, cipher_type):
         
         iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
-        print(sess_key)
-        print(iv)
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
-        encrypted_msg = encryptor.update(padded_msg.encode('utf-8')) + encryptor.finalize()
+        encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
         
-        client.sendall(encrypted_msg.encode('utf-8'))
+        client.sendall(encrypted_msg)
 
 def recv(size, cipher_type):
     global key, nonce, client
@@ -44,8 +42,6 @@ def recv(size, cipher_type):
         
         iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
-        print(sess_key)
-        print(iv)
         backend = default_backend()
 
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -80,16 +76,16 @@ if __name__ == "__main__":
         nonce = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
         client.sendall((cipher + "," + nonce).encode('utf-8'))
 
-        data = recv(128, cipher)
+        data = recv(128, cipher).decode('utf-8')
         #data = client.recv(128).decode('utf-8')
         auth_data = (data + key).encode('utf-8')
-        msg = hashlib.sha256().update((auth_data)).hexdigest()
+        msg = hashlib.sha256(auth_data).hexdigest()
         send(msg, cipher)
         #client.sendall(msg.encode('utf-8'))
         result = recv(128, cipher)
         print(result)
 
-        send(command + "," + filename)
+        send(command + "," + filename, cipher)
         #client.sendall((command + "," + filename).encode('utf-8'))
 
 '''
