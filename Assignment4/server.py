@@ -59,8 +59,8 @@ if __name__ == "__main__":
 #                                new_key += str(padding_needed)
 #                        key = new_key
 
-                iv = (hashlib().sha256()).update(key+nonce+'IV').digest()
-                sk = (hashlib().sha256()).update(key+nonce+'SK').digest()
+                iv = hashlib.sha256((key+nonce+'IV').encode('utf-8')).digest()
+                sk = hashlib.sha256((key+nonce+'SK').encode('utf-8')).digest()
                 print("asdf")
                 crypto = Cipher(algorithms.AES(sk), modes.CBC(iv), backend=backend)
                 encryptor = crypto.encryptor()
