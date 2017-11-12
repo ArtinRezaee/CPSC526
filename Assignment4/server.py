@@ -11,21 +11,31 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 from socket import gethostname, gethostbyname
 
+def initConnection(cipher_type):
+    global key,nonce,iv,sess_key
+    iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+    if(cipher_type == 'aes128'):
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+    elif(cipher_type == 'aes256'):
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+    print(time.strftime("%Y-%m-%d %H:%M"),": IV="+str(iv))
+    print(time.strftime("%Y-%m-%d %H:%M"),": SK="+str(sess_key))
+
 
 def send(msg, cipher_type):
-    global key, nonce, client_socket
+    global key, nonce, client_socket, sess_key, iv
     if(cipher_type == 'null'):
         client_socket.send(msg.encode('utf-8'))
     else:
-        if(cipher_type == 'aes128'):
-            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
-        elif(cipher_type == 'aes256'):
-            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+#        if(cipher_type == 'aes128'):
+#            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+#        elif(cipher_type == 'aes256'):
+#            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
 
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
 
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
@@ -43,8 +53,8 @@ def recv(size, cipher_type):
         
         data = client_socket.recv(size)
         
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+#        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
         backend = default_backend()
         
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -58,8 +68,8 @@ def recv(size, cipher_type):
     elif(cipher_type == 'aes256'):
         data = client_socket.recv(size)
         
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+#        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
         backend = default_backend()
         
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -74,6 +84,9 @@ def recv(size, cipher_type):
 def encrypt(msg):
     pass
 
+
+iv = None
+sess_key = None
 if __name__ == "__main__":
     HOST, PORT, key = "localhost", int(sys.argv[1]), sys.argv[2]
     # Boolan to see if user is logged in
@@ -100,6 +113,7 @@ if __name__ == "__main__":
         auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
         print(time.strftime("%Y-%m-%d %H:%M"),": New Connection from "+ client_socket.getpeername()[0] + " cipher="+cipher)
         print(time.strftime("%Y-%m-%d %H:%M"),": nonce="+nonce)
+        initConnection(cipher)
         send(auth_token, cipher)
 
         while True:
