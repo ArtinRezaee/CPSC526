@@ -97,18 +97,18 @@ if __name__ == "__main__":
         destination = sys.argv[3]
         cipher = sys.argv[4]
         key = sys.argv[5]
-        if((command != "read") and (command != "write")){
+        if((command != "read") and (command != "write")):
             print("Invalid command. Please use one of the following:\nread\nwrite\nProgram exiting...")
             sys.exit()
-        }
-        if((cipher != "null") and (cipher != "aes128") and (cipher != "aes256")){
+        
+        if((cipher != "null") and (cipher != "aes128") and (cipher != "aes256")):
             print("Invalid cipher. Please use one of the following:\nnull\naes128\naes256\nProgram exiting...")
             sys.exit()
-        }
-        if((command == "write") and (sys.stdin.isatty())){
+        
+        if((command == "write") and (sys.stdin.isatty())):
             print("No input for write detected. Exiting...")
             sys.exit()
-        }
+        
         host, port = destination.split(':')
 
         # Create the socket and connect to it
