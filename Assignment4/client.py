@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
-def initConnection(cipher_type):
+def initCipherValues(cipher_type):
     global key,nonce,iv,sess_key
     iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
     if(cipher_type == 'aes128'):
@@ -70,7 +70,6 @@ def recv(size, cipher_type):
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
         
-        print("server said:" + str(decrypted_data))
         unpadder = padding.PKCS7(128).unpadder()
 #        print("decrypted_data:" + str(decrypted_data))
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
@@ -93,13 +92,24 @@ if __name__ == "__main__":
         destination = sys.argv[3]
         cipher = sys.argv[4]
         key = sys.argv[5]
-
+        if((command != "read") && (command != "write")){
+            print("Invalid command. Please use one of the following:\nread\nwrite\nProgram exiting...")
+            sys.exit()
+        }
+        if((cipher != "null") && (cipher != "aes128") && (cipher != "aes256")){
+            print("Invalid cipher. Please use one of the following:\nnull\naes128\naes256\nProgram exiting...")
+            sys.exit()
+        }
+        if((command == "write") && (sys.stdin.isatty())){
+            print("No input for write detected. Exiting...")
+            sys.exit()
+        }
         host, port = destination.split(':')
 
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((host,int(port)))
         nonce = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
-        initConnection(cipher)
+        initCipherValues(cipher)
         client.sendall((cipher + "," + nonce).encode('utf-8'))
 
         data = recv(128, cipher)
