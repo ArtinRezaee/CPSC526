@@ -97,15 +97,15 @@ if __name__ == "__main__":
         destination = sys.argv[3]
         cipher = sys.argv[4]
         key = sys.argv[5]
-        if((command != "read") && (command != "write")){
+        if((command != "read") and (command != "write")){
             print("Invalid command. Please use one of the following:\nread\nwrite\nProgram exiting...")
             sys.exit()
         }
-        if((cipher != "null") && (cipher != "aes128") && (cipher != "aes256")){
+        if((cipher != "null") and (cipher != "aes128") and (cipher != "aes256")){
             print("Invalid cipher. Please use one of the following:\nnull\naes128\naes256\nProgram exiting...")
             sys.exit()
         }
-        if((command == "write") && (sys.stdin.isatty())){
+        if((command == "write") and (sys.stdin.isatty())){
             print("No input for write detected. Exiting...")
             sys.exit()
         }
@@ -129,8 +129,8 @@ if __name__ == "__main__":
         
         # Create a hash and prove to the server that you have the knowledge of the key
         auth_data = (data + key).encode('utf-8')
-        msg = hashlib.sha256(auth_data).hexdigest()
-        send(msg, cipher)
+        hash_auth = hashlib.sha256(auth_data).hexdigest()
+        send(hash_auth, cipher)
         
         # Get server's response and print
         result = recv(128, cipher)
@@ -148,11 +148,11 @@ if __name__ == "__main__":
                     result = recv(128, cipher)
                     send(result, cipher)
                     if(result == "Something went wrong"):
-                        print(result)
-                        break
+                        print("File could not be successfully downloaded. Program Exiting...")
+                        sys.exit()
                     elif(result == "OK"):
                         print("File successfully downloaded.")
-                        break
+                        sys.exit()
                     else:
                         print(result)
             elif(command == "write"):
@@ -161,8 +161,8 @@ if __name__ == "__main__":
                     send(line, cipher)
                     response = recv(128, cipher)
                     if(response != line):
-                        print("Something went wrong")
-                        break
+                        print("File could not be successfully uploaded. Program Exiting...")
+                        sys.exit()
                 send("OK", cipher)
                 result = recv(128, cipher)    
                 if(result == "OK"):
