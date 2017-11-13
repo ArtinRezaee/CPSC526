@@ -1,1 +1,2 @@
-asdf
+Supported cçommands are:
+pwd,cd,ls,rm,cat,logout,off,cp,mv,net,snap,diff,1more
