@@ -87,9 +87,27 @@ def read(fileName,cipher_type):
         for line in fileObj:
             send(line,cipher_type)
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
+        fileObj.close()
         return True
     except IOError:
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Failed")
+        fileObj.close()
+        return False
+
+def write(fileName,cipher_type):
+    try:
+        fileObj = open(fileName,"w")
+        while True:
+            line = recv(128,cipher_type)
+            if not line:
+                break
+            fileObj.write(line)
+        print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
+        fileObj.close()
+        return True
+    except IOError:
+        print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Failed")
+        fileObj.close()
         return False
 
 
@@ -152,22 +170,23 @@ if __name__ == "__main__":
                     command = data
                     send("OK got your command",cipher)
                 else:
+                    fileName = data
                     if command == 'read':
-                        fileName = data
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
                         stats = read(fileName, cipher)
-                        if stats:
-                            send("OK",cipher)
-                        else:
-                            send("Something went wrong",cipher)
-                        break
                     elif command == 'write':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+data)
-                        send("OK uploading "+data,cipher)
+                        stats = write(fileName)
+                    if stats:
+                        send("OK",cipher)
+                    else:
+                        send("Something went wrong",cipher)
+                    break
+
         client_socket.close()
         loggedIn = False
         gotCommand = False
-        
+
     
 
 #                # Interpret user info by matching it with one of the definitions in the variable
