@@ -117,17 +117,22 @@ if __name__ == "__main__":
             if(command == "read"):
                 while True:
                     result = recv(128, cipher)
+                    send(result, cipher)
                     if(result == "Something went wrong"):
                         print(result)
                         break
-                    elif(result == "Ok"):
+                    elif(result == "OK"):
                         print("File successfully downloaded.")
                         break
                     else:
                         print(result)
             elif(command == "write"):
                 for line in sys.stdin:
-                    send(line)
+                    send(line, cipher)
+                    response = recv(128, cipher)
+                    if(response != line):
+                        print("Something went wrong")
+                        break
                 result = recv(128, cipher)    
                 if(result == "Ok"):
                     print("File successfully uploaded.")

@@ -91,8 +91,9 @@ def read(fileName,cipher_type):
         fileObj = open(fileName,"r")
         for line in fileObj:
             send(line,cipher_type)
-            print(line)
-            print("end line")
+            response = recv(128, cipher_type)
+            if(response != line):
+                return False
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
@@ -114,6 +115,7 @@ def write(fileName,cipher_type):
             if not line:
                 break
             fileObj.write(line)
+            send(line, cipher_type)
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
@@ -204,7 +206,7 @@ if __name__ == "__main__":
                     # perform write operation
                     elif command == 'write':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+data)
-                        stats = write(fileName)
+                        stats = write(fileName, cipher)
                     
                     # Give user feedback regarding the operation status
                     if stats:
