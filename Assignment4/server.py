@@ -133,6 +133,7 @@ def encrypt(msg):
 # Initialization vector and session key variables
 iv = None
 sess_key = None
+hash_auth = None
 if __name__ == "__main__":
     HOST, PORT, key = "localhost", int(sys.argv[1]), sys.argv[2]
     # Boolan to see if user is logged in
