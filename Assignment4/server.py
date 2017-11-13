@@ -34,7 +34,7 @@ def send(msg, cipher_type):
 
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
-
+        print("server will say:"+str(padded_msg))
 #        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -86,6 +86,8 @@ def read(fileName,cipher_type):
         fileObj = open(fileName,"r")
         for line in fileObj:
             send(line,cipher_type)
+            print(line)
+            print("end line")
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
@@ -165,7 +167,7 @@ if __name__ == "__main__":
                     break
             else:
                     command,fileName = data.split(',')
-                        send("OK got your command",cipher)
+                    send("OK got your command",cipher)
                     if command == 'read':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
                         stats = read(fileName, cipher)

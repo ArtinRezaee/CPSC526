@@ -8,21 +8,28 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
+def initConnection(cipher_type):
+    global key,nonce,iv,sess_key
+    iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+    if(cipher_type == 'aes128'):
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+    elif(cipher_type == 'aes256'):
+        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
 
 def send(msg, cipher_type):
     global key, nonce, client
     if(cipher_type == 'null'):
         client.sendall(msg.encode('utf-8'))
     else:
-        if(cipher_type == 'aes128'):
-            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
-        elif(cipher_type == 'aes256'):
-            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+        # if(cipher_type == 'aes128'):
+        #     sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+        # elif(cipher_type == 'aes256'):
+        #     sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
 
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
 
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        # iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
@@ -39,8 +46,8 @@ def recv(size, cipher_type):
         data = client.recv(size)
 #        print(data)
 
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
+        # iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        # sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
         backend = default_backend()
         
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -55,14 +62,15 @@ def recv(size, cipher_type):
         data = client.recv(size)
 #        print(data)
 
-        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
+        # iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        # sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
         backend = default_backend()
 
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
         
+        print("server said:" + str(decrypted_data))
         unpadder = padding.PKCS7(128).unpadder()
 #        print("decrypted_data:" + str(decrypted_data))
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
@@ -75,6 +83,8 @@ def encrypt(msg):
 key = None
 nonce = None
 client = None
+iv = None
+sess_key = None
 if __name__ == "__main__":
     if(len(sys.argv) == 6):
 #        global key, nonce, client
@@ -89,6 +99,7 @@ if __name__ == "__main__":
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((host,int(port)))
         nonce = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
+        initConnection(cipher)
         client.sendall((cipher + "," + nonce).encode('utf-8'))
 
         data = recv(128, cipher)
@@ -99,36 +110,29 @@ if __name__ == "__main__":
         #client.sendall(msg.encode('utf-8'))
         result = recv(128, cipher)
         print(result)
-        send(command,cipher)
-        result = recv(128, cipher)
-        print(result)
-        send(filename, cipher)
-        result = recv(128, cipher)
-        print(result)
 
         send(command + "," + filename, cipher)
+        result = recv(128, cipher)
+        if(result == "OK got your command"):
+            if(command == "read"):
+                while True:
+                    result = recv(128, cipher)
+                    if(result == "Something went wrong"):
+                        print(result)
+                        break
+                    elif(result == "Ok"):
+                        print("File successfully downloaded.")
+                        break
+                    else:
+                        print(result)
+            elif(command == "write"):
+                for line in sys.stdin:
+                    send(line)
+                result = recv(128, cipher)    
+                if(result == "Ok"):
+                    print("File successfully uploaded.")
+                else:
+                    print(result)
+        else:
+            pass
         #client.sendall((command + "," + filename).encode('utf-8'))
-
-'''
-backend = default_backend()
-
-cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
-encryptor = cipher.encryptor()
-ct = encryptor.update(b"a secret message") + encryptor.finalize()
-
-
->>> padder = padding.PKCS7(128).padder()
->>> padded_data = padder.update(b"11111111111111112222222222")
->>> padded_data
-'1111111111111111'
->>> padded_data += padder.finalize()
->>> padded_data
-'11111111111111112222222222\x06\x06\x06\x06\x06\x06'
-
->>> unpadder = padding.PKCS7(128).unpadder()
->>> data = unpadder.update(padded_data)
->>> data
-'1111111111111111'
->>> data + unpadder.finalize()
-'11111111111111112222222222'
-'''
