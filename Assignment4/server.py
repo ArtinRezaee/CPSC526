@@ -27,7 +27,7 @@ def initConnection(cipher_type):
 # Function to send encrypted messages to the client
 def send(msg, cipher_type):
     global key, nonce, client_socket, sess_key, iv
-    
+    print("Server saying: " + msg)
     # send the raw message to the client if there is no cipher specifies
     if(cipher_type == 'null'):
         client_socket.send(msg.encode('utf-8'))
@@ -36,6 +36,7 @@ def send(msg, cipher_type):
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
         # encrypt the padded message with the specified cipher type
+        print("server is saying: " + str(padded_msg))
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
@@ -63,7 +64,6 @@ def recv(size, cipher_type):
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        
         # Unpad the data and return the message
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
@@ -81,6 +81,7 @@ def recv(size, cipher_type):
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
         msg = unpadded_data.decode('utf-8')
+    print("Client saying: " + msg)
     return msg
 
 # Function to read from a file and send to user
@@ -155,7 +156,7 @@ if __name__ == "__main__":
         client_socket, info= server.accept()
         
         # receive initial data from the client
-        data = client_socket.recv(128).decode('utf8').strip()
+        data = client_socket.recv(128).decode('utf-8').strip()
         
         # Get the cipher and nonce from the received data
         cipher,nonce = data.split(',')

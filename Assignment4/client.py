@@ -22,7 +22,7 @@ def initCipherValues(cipher_type):
 # Function to send encrypted messages to the server
 def send(msg, cipher_type):
     global key, nonce, client
-    
+    print("Client saying: " + msg)
     # send the raw message to the server if there is no cipher specified
     if(cipher_type == 'null'):
         client.sendall(msg.encode('utf-8'))
@@ -59,7 +59,7 @@ def recv(size, cipher_type):
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        
+        print("Server is saying:" + str(decrypted_data))
         # Unpad the data and return the message
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
@@ -74,10 +74,12 @@ def recv(size, cipher_type):
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        
+        print("Server is saying:" + str(decrypted_data))
+
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
         msg = unpadded_data.decode('utf-8')
+    print("Server saying: " + msg)
     return msg
 
 def encrypt(msg):
@@ -154,7 +156,7 @@ if __name__ == "__main__":
                         print("File successfully downloaded.")
                         sys.exit()
                     else:
-                        print(result)
+                        print(result),
             elif(command == "write"):
                 # Read the information from standard input and send it to the server
                 for line in sys.stdin:
