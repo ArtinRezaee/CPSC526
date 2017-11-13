@@ -11,9 +11,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
+#Function to generate the initialization vector and session key
 def initConnection(cipher_type):
     global key,nonce,iv,sess_key
+    # Create a initialization vector using the key and nonce
     iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+    # Create a session key based on the cipher type using the key and nonce
     if(cipher_type == 'aes128'):
         sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
     elif(cipher_type == 'aes256'):
@@ -21,55 +24,55 @@ def initConnection(cipher_type):
     print(time.strftime("%Y-%m-%d %H:%M"),": IV="+str(iv))
     print(time.strftime("%Y-%m-%d %H:%M"),": SK="+str(sess_key))
 
-
+# Function to send encrypted messages to the client
 def send(msg, cipher_type):
     global key, nonce, client_socket, sess_key, iv
+    
+    # send the raw message to the client if there is no cipher specifies
     if(cipher_type == 'null'):
         client_socket.send(msg.encode('utf-8'))
     else:
-#        if(cipher_type == 'aes128'):
-#            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
-#        elif(cipher_type == 'aes256'):
-#            sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
-
+        # padd the message
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
         print("server will say:"+str(padded_msg))
-#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
+        # encrypt the padded message with the specified cipher type
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
         encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
-    
+        
+        # Send encrypted message to the user
         client_socket.send(encrypted_msg)
 
-
+# Function to receive encrypted messages from the client and decrypt it for the server's use
 def recv(size, cipher_type):
     global key, nonce, client_socket
+    
+    # Only decode if cipher is null
     if(cipher_type == 'null'):
         msg = client_socket.recv(size).decode('utf-8')
     
+    #based on the type of cipher
     elif(cipher_type == 'aes128'):
         
+        # receive the data from client
         data = client_socket.recv(size)
-        
-#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-#        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()[:16]
         backend = default_backend()
         
+        # decrypt the data
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
         
+        # Unpad the data and return the message
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
         msg = unpadded_data.decode('utf-8')
 
+    # Same as above
     elif(cipher_type == 'aes256'):
         data = client_socket.recv(size)
-        
-#        iv = hashlib.sha256((key + nonce + "IV").encode('utf-8')).digest()[:16]
-#        sess_key = hashlib.sha256((key + nonce + "SK").encode('utf-8')).digest()
         backend = default_backend()
         
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
@@ -81,8 +84,10 @@ def recv(size, cipher_type):
         msg = unpadded_data.decode('utf-8')
     return msg
 
+# Function to read from a file and send to user
 def read(fileName,cipher_type):
     try:
+        # open the file and read line by line and send each line to user by calling recv
         fileObj = open(fileName,"r")
         for line in fileObj:
             send(line,cipher_type)
@@ -91,14 +96,19 @@ def read(fileName,cipher_type):
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
+
+    # If file doesnt exist or there is a problem, let the user know
     except IOError:
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Failed")
         fileObj.close()
         return False
 
+# Function to write content received from the client to a file
 def write(fileName,cipher_type):
     try:
+        # Try opening a file
         fileObj = open(fileName,"w")
+        # while there is an input from client, write it to the file
         while True:
             line = recv(128,cipher_type)
             if not line:
@@ -107,6 +117,8 @@ def write(fileName,cipher_type):
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
+
+    # If file doesnt exist or there is a problem, let the user know
     except IOError:
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Failed")
         fileObj.close()
@@ -117,7 +129,7 @@ def write(fileName,cipher_type):
 def encrypt(msg):
     pass
 
-
+# Initialization vector and session key variables
 iv = None
 sess_key = None
 if __name__ == "__main__":
@@ -139,19 +151,34 @@ if __name__ == "__main__":
     while True:
         # Accept new clients and prompt them to login
         client_socket, info= server.accept()
+        
+        # receive initial data from the client
         data = client_socket.recv(128).decode('utf8').strip()
+        
+        # Get the cipher and nonce from the received data
         cipher,nonce = data.split(',')
+        
+        # Create an authentication token randomly for authentication purposes
         auth_token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(16))
+        
+        # Log key and nonce on the server side
         print(time.strftime("%Y-%m-%d %H:%M"),": New Connection from "+ client_socket.getpeername()[0] + " cipher="+cipher)
         print(time.strftime("%Y-%m-%d %H:%M"),": nonce="+nonce)
+        
+        # Initialize the connection
         initConnection(cipher)
+        
+        # Prompt the client for its knowledge of the key
         send(auth_token, cipher)
 
         while True:
             # Recieve data from client
             data = recv(128,cipher)
-#            print(data)
+            
+            # check if user is logged in or not
             if not loggedIn:
+                
+                # create the expecting user credintials
                 hash_auth = hashlib.sha256()
                 hash_auth.update((auth_token+key).encode('utf-8'))
                 # Check user's credintials
@@ -166,38 +193,31 @@ if __name__ == "__main__":
                     client_socket.close()
                     break
             else:
+                # Get user command and file name
                     command,fileName = data.split(',')
                     send("OK got your command",cipher)
+                    # perform read operation
                     if command == 'read':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
                         stats = read(fileName, cipher)
+                    
+                    # perform write operation
                     elif command == 'write':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+data)
                         stats = write(fileName)
+                    
+                    # Give user feedback regarding the operation status
                     if stats:
                         send("OK",cipher)
                     else:
                         send("Error: File does not exist or something went wrong",cipher)
+                    
+                    # Terminate the client
                     break
 
+        # Close client socket and set the login parameter to false
         client_socket.close()
         loggedIn = False
-
-    
-
-#                # Interpret user info by matching it with one of the definitions in the variable
-#                args = data.split()
-#                if args[0] == "off":
-#                    do_off(server,client_socket,args)
-#                elif args[0] == "logout":
-#                    do_logout(client_socket,args)
-#                    loggedIn = False
-#                    break
-#                else:
-#                    if not args[0] in interpretInput:
-#                        client_socket.send(b'\033[91mNo such command\n\033[0m')
-#                    else:
-#                        interpretInput[args[0]](client_socket,args)
 
     # close clients socket
     client_socket.close()
