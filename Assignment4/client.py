@@ -59,7 +59,8 @@ def recv(size, cipher_type):
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        print("Server is saying:" + str(decrypted_data))
+        print("Server is saying:" + str(decrypted_data), file=sys.stderr)
+        
         # Unpad the data and return the message
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
@@ -74,7 +75,7 @@ def recv(size, cipher_type):
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        print("Server is saying:" + str(decrypted_data))
+        print("Server is saying:" + str(decrypted_data), file=sys.stderr)
 
         unpadder = padding.PKCS7(128).unpadder()
         unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
