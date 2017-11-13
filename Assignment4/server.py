@@ -35,7 +35,6 @@ def send(msg, cipher_type):
         # padd the message
         padder = padding.PKCS7(128).padder()
         padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
-        print("server will say:"+str(padded_msg))
         # encrypt the padded message with the specified cipher type
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
