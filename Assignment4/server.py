@@ -166,6 +166,8 @@ if __name__ == "__main__":
                         send("OK uploading "+data,cipher)
         client_socket.close()
         loggedIn = False
+        gotCommand = False
+        
     
 
 #                # Interpret user info by matching it with one of the definitions in the variable
