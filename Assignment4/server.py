@@ -5,11 +5,11 @@ import hashlib
 import random
 import time
 import os
+import os.path
 import string
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
-from socket import gethostname, gethostbyname
 
 def initConnection(cipher_type):
     global key,nonce,iv,sess_key
@@ -81,6 +81,19 @@ def recv(size, cipher_type):
         msg = unpadded_data.decode('utf-8')
     return msg
 
+def read(fileName,cipher_type):
+    try:
+        fileObj = open(fileName,"r")
+        for line in fileObj:
+            send(line,cipher_type)
+        print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
+        return True
+    except IOError:
+        print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Failed")
+        return False
+
+
+
 def encrypt(msg):
     pass
 
@@ -140,11 +153,19 @@ if __name__ == "__main__":
                     send("OK got your command",cipher)
                 else:
                     if command == 'read':
-                        print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+data)
-                        send("OK downloading "+data,cipher)
+                        fileName = data
+                        print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
+                        stats = read(fileName, cipher)
+                        if stats:
+                            send("OK",cipher)
+                        else:
+                            send("Something went wrong",cipher)
+                        break
                     elif command == 'write':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+data)
                         send("OK uploading "+data,cipher)
+        client_socket.close()
+        loggedIn = False
     
 
 #                # Interpret user info by matching it with one of the definitions in the variable
