@@ -159,11 +159,13 @@ if __name__ == "__main__":
                     send('Welcome to the back-door server\n', cipher)
                 else:
                     # Terminate client socket if wrong password is inputted
+                    print(time.strftime("%Y-%m-%d %H:%M"),": Error: Bad key")
                     send('Wrong password! bye\n', cipher)
                     client_socket.close()
                     break
             else:
                     command,fileName = data.split(',')
+                        send("OK got your command",cipher)
                     if command == 'read':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
                         stats = read(fileName, cipher)
@@ -173,7 +175,7 @@ if __name__ == "__main__":
                     if stats:
                         send("OK",cipher)
                     else:
-                        send("Something went wrong",cipher)
+                        send("Error: File does not exist or something went wrong",cipher)
                     break
 
         client_socket.close()
