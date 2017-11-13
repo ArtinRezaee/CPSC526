@@ -122,8 +122,6 @@ if __name__ == "__main__":
     HOST, PORT, key = "localhost", int(sys.argv[1]), sys.argv[2]
     # Boolan to see if user is logged in
     loggedIn = False;
-    # Boolean to see if server has gotten a command
-    gotCommand = False;
     # Create a socket that can handle nc command
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -165,12 +163,7 @@ if __name__ == "__main__":
                     client_socket.close()
                     break
             else:
-                if not gotCommand:
-                    gotCommand = True
-                    command = data
-                    send("OK got your command",cipher)
-                else:
-                    fileName = data
+                    command,fileName = data.split(',')
                     if command == 'read':
                         print(time.strftime("%Y-%m-%d %H:%M"),": command:"+command+ ", filename:"+fileName)
                         stats = read(fileName, cipher)
@@ -185,7 +178,6 @@ if __name__ == "__main__":
 
         client_socket.close()
         loggedIn = False
-        gotCommand = False
 
     
 
