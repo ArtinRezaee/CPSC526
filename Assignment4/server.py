@@ -112,7 +112,7 @@ def write(fileName,cipher_type):
         # while there is an input from client, write it to the file
         while True:
             line = recv(128,cipher_type)
-            if not line:
+            if line == "OK":
                 break
             fileObj.write(line)
             send(line, cipher_type)

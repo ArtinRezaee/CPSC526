@@ -133,8 +133,9 @@ if __name__ == "__main__":
                     if(response != line):
                         print("Something went wrong")
                         break
+                send("OK", cipher)
                 result = recv(128, cipher)    
-                if(result == "Ok"):
+                if(result == "OK"):
                     print("File successfully uploaded.")
                 else:
                     print(result)
