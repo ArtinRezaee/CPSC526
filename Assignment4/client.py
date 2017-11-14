@@ -24,7 +24,8 @@ def send(msg, cipher_type):
     global key, nonce, client_socket, sess_key, iv
     # send the raw message to the client if there is no cipher specifies
     if(cipher_type == 'null'):
-        client_socket.send(msg.encode('utf-8'))
+        client.send(msg.encode('utf-8'))
+        print("Client sent: " + msg, file=sys.stderr)
     else:
         n = 16
         blocks = [msg[i:i+n] for i in range(0, len(msg), n)]
@@ -79,14 +80,16 @@ def sendData(msg, cipher_type):
 
 # Function to receive encrypted messages from the server and decrypt it for the client's use
 def recv(size, cipher_type):
-    size = 16
     global key, nonce, client
     tot_msg = ""
     # Only decode if cipher is null
     if(cipher_type == 'null'):
         msg = client.recv(size).decode('utf-8')
+        print("Client got: " + msg, file=sys.stderr)
+        tot_msg = msg
     #based on the type of cipher
     else:
+        size = 16
         while True:
             data = client.recv(size)
             backend = default_backend()
@@ -106,13 +109,13 @@ def recv(size, cipher_type):
     return tot_msg
 
 def recvData(size, cipher_type):
-    size = 16
     global key, nonce, client
     # Only decode if cipher is null
     if(cipher_type == 'null'):
         msg = client.recv(size).decode('utf-8')
     #based on the type of cipher
     else:
+        size = 16
         data = client.recv(size)
         backend = default_backend()
 
