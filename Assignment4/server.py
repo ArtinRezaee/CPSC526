@@ -27,61 +27,111 @@ def initConnection(cipher_type):
 # Function to send encrypted messages to the client
 def send(msg, cipher_type):
     global key, nonce, client_socket, sess_key, iv
-    print("Server saying: " + msg)
     # send the raw message to the client if there is no cipher specifies
     if(cipher_type == 'null'):
         client_socket.send(msg.encode('utf-8'))
     else:
-        # padd the message
+        n = 16
+        blocks = [msg[i:i+n] for i in range(0, len(msg), n)]
+
+        for block in blocks:
+            # padd the message
+            if(len(block) < 16):
+                padder = padding.PKCS7(128).padder()
+                padded_msg = padder.update(block.encode('utf-8')) + padder.finalize()
+            else:
+                padded_msg = block.encode('utf-8')
+            # encrypt the padded message with the specified cipher type
+            backend = default_backend()
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            encryptor = cipher.encryptor()
+            encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+            
+            # Send encrypted message to the server
+            client_socket.sendall(encrypted_msg)
         padder = padding.PKCS7(128).padder()
-        padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
+        padded_msg = padder.update(("OK").encode('utf-8')) + padder.finalize()
         # encrypt the padded message with the specified cipher type
-        print("server is saying: " + str(padded_msg))
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
         encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
-        
-        # Send encrypted message to the user
-        client_socket.send(encrypted_msg)
+        client_socket.sendall(encrypted_msg)
+
+def sendData(msg, cipher_type):
+    global key, nonce, client_socket, sess_key, iv
+    # send the raw message to the client if there is no cipher specifies
+    if(cipher_type == 'null'):
+        client_socket.send(msg.encode('utf-8'))
+    else:
+        n = 16
+        blocks = [msg[i:i+n] for i in range(0, len(msg), n)]
+
+        for block in blocks:
+            # padd the message
+            if(len(block) < 16):
+                padder = padding.PKCS7(128).padder()
+                padded_msg = padder.update(block.encode('utf-8')) + padder.finalize()
+            else:
+                padded_msg = block.encode('utf-8')
+            # encrypt the padded message with the specified cipher type
+            backend = default_backend()
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            encryptor = cipher.encryptor()
+            encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+            
+            # Send encrypted message to the server
+            client_socket.sendall(encrypted_msg)
 
 # Function to receive encrypted messages from the client and decrypt it for the server's use
-def recv(size, cipher_type):
+def recv(size, cipher_type):    
+    size = 16
     global key, nonce, client_socket
-    
+    tot_msg = ""
     # Only decode if cipher is null
     if(cipher_type == 'null'):
         msg = client_socket.recv(size).decode('utf-8')
     
     #based on the type of cipher
-    elif(cipher_type == 'aes128'):
-        
-        # receive the data from client
-        data = client_socket.recv(size)
-        backend = default_backend()
-        
-        # decrypt the data
-        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
-        decryptor = cipher.decryptor()
-        decrypted_data = decryptor.update(data) + decryptor.finalize()
-        # Unpad the data and return the message
-        unpadder = padding.PKCS7(128).unpadder()
-        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
-        msg = unpadded_data.decode('utf-8')
+    else:
+        while True:
+            data = client_socket.recv(size)
+            backend = default_backend()
 
-    # Same as above
-    elif(cipher_type == 'aes256'):
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            decryptor = cipher.decryptor()
+            decrypted_data = decryptor.update(data) + decryptor.finalize()
+            try:
+                unpadder = padding.PKCS7(128).unpadder()
+                unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+            except ValueError:
+                unpadded_data = decrypted_data
+            msg = unpadded_data.decode('utf-8')
+            if(msg == "OK"):
+                break
+            tot_msg += msg
+    return tot_msg
+
+def recvData(size, cipher_type):
+    size = 16
+    global key, nonce, client_socket
+    # Only decode if cipher is null
+    if(cipher_type == 'null'):
+        msg = client_socket.recv(size).decode('utf-8')
+    #based on the type of cipher
+    else:
         data = client_socket.recv(size)
         backend = default_backend()
-        
+
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        
-        unpadder = padding.PKCS7(128).unpadder()
-        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        try:
+            unpadder = padding.PKCS7(128).unpadder()
+            unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        except ValueError:
+            unpadded_data = decrypted_data
         msg = unpadded_data.decode('utf-8')
-    print("Client saying: " + msg)
     return msg
 
 # Function to read from a file and send to user
@@ -90,10 +140,7 @@ def read(fileName,cipher_type):
         # open the file and read line by line and send each line to user by calling recv
         fileObj = open(fileName,"r")
         for line in fileObj:
-            send(line,cipher_type)
-            response = recv(128, cipher_type)
-            if(response != line):
-                return False
+            sendData(line,cipher_type)
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
         fileObj.close()
         return True
@@ -111,13 +158,12 @@ def write(fileName,cipher_type):
         fileObj = open(fileName,"w")
         # while there is an input from client, write it to the file
         while True:
-            line = recv(128,cipher_type)
-            if line == "OK":
+            line = recvData(16,cipher_type)
+            if line == "Done":
                 break
             fileObj.write(line)
-            send(line, cipher_type)
         print(time.strftime("%Y-%m-%d %H:%M"), ": Status:Success")
-        fileObj.close()
+        fileObj.close() 
         return True
 
     # If file doesnt exist or there is a problem, let the user know
@@ -211,9 +257,9 @@ if __name__ == "__main__":
                     
                     # Give user feedback regarding the operation status
                     if stats:
-                        send("OK",cipher)
+                        send("Done",cipher)
                     else:
-                        send("Error: File does not exist or something went wrong",cipher)
+                        send("Error: FDNE",cipher)
                     
                     # Terminate the client
                     break

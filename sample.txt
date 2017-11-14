@@ -1,4 +1,4 @@
-Supported cçommands are:
+Supported commands are:
 pwd,cd,ls,rm,cat,logout,off,cp,mv,net,snap,diff,1more
 test
 a

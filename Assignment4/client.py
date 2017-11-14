@@ -21,66 +21,110 @@ def initCipherValues(cipher_type):
 
 # Function to send encrypted messages to the server
 def send(msg, cipher_type):
-    global key, nonce, client
-    print("Client saying: " + msg)
-    # send the raw message to the server if there is no cipher specified
+    global key, nonce, client_socket, sess_key, iv
+    # send the raw message to the client if there is no cipher specifies
     if(cipher_type == 'null'):
-        client.sendall(msg.encode('utf-8'))
+        client_socket.send(msg.encode('utf-8'))
     else:
-        # padd the message
+        n = 16
+        blocks = [msg[i:i+n] for i in range(0, len(msg), n)]
+
+        for block in blocks:
+            # padd the message
+            if(len(block) < 16):
+                padder = padding.PKCS7(128).padder()
+                padded_msg = padder.update(block.encode('utf-8')) + padder.finalize()
+            else:
+                padded_msg = block.encode('utf-8')
+            # encrypt the padded message with the specified cipher type
+            backend = default_backend()
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            encryptor = cipher.encryptor()
+            encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+            # Send encrypted message to the server
+            client.sendall(encrypted_msg)
         padder = padding.PKCS7(128).padder()
-        padded_msg = padder.update(msg.encode('utf-8')) + padder.finalize()
+        padded_msg = padder.update(("OK").encode('utf-8')) + padder.finalize()
         # encrypt the padded message with the specified cipher type
         backend = default_backend()
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         encryptor = cipher.encryptor()
         encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
-        
-        # Send encrypted message to the server
         client.sendall(encrypted_msg)
+
+def sendData(msg, cipher_type):
+    global key, nonce, client_socket, sess_key, iv
+    # send the raw message to the client if there is no cipher specifies
+    if(cipher_type == 'null'):
+        client.send(msg.encode('utf-8'))
+    else:
+        n = 16
+        blocks = [msg[i:i+n] for i in range(0, len(msg), n)]
+
+        for block in blocks:
+            # padd the message
+            if(len(block) < 16):
+                padder = padding.PKCS7(128).padder()
+                padded_msg = padder.update(block.encode('utf-8')) + padder.finalize()
+            else:
+                padded_msg = block.encode('utf-8')
+            # encrypt the padded message with the specified cipher type
+            backend = default_backend()
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            encryptor = cipher.encryptor()
+            encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+            
+            # Send encrypted message to the server
+            client.sendall(encrypted_msg)
 
 # Function to receive encrypted messages from the server and decrypt it for the client's use
 def recv(size, cipher_type):
+    size = 16
     global key, nonce, client
-    
+    tot_msg = ""
     # Only decode if cipher is null
     if(cipher_type == 'null'):
         msg = client.recv(size).decode('utf-8')
-    
     #based on the type of cipher
-    elif(cipher_type == 'aes128'):
-        
-        # receive the data from client
-        data = client.recv(size)
+    else:
+        while True:
+            data = client.recv(size)
+            backend = default_backend()
 
-        # decrypt the data
+            cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
+            decryptor = cipher.decryptor()
+            decrypted_data = decryptor.update(data) + decryptor.finalize()
+            try:
+                unpadder = padding.PKCS7(128).unpadder()
+                unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+            except ValueError:
+                unpadded_data = decrypted_data
+            msg = unpadded_data.decode('utf-8')
+            if(msg == "OK"):
+                break
+            tot_msg += msg
+    return tot_msg
+
+def recvData(size, cipher_type):
+    size = 16
+    global key, nonce, client
+    # Only decode if cipher is null
+    if(cipher_type == 'null'):
+        msg = client.recv(size).decode('utf-8')
+    #based on the type of cipher
+    else:
+        data = client.recv(size)
         backend = default_backend()
-        
+
         cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(data) + decryptor.finalize()
-        print("Server is saying:" + str(decrypted_data), file=sys.stderr)
-        
-        # Unpad the data and return the message
-        unpadder = padding.PKCS7(128).unpadder()
-        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        try:
+            unpadder = padding.PKCS7(128).unpadder()
+            unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        except ValueError:
+            unpadded_data = decrypted_data
         msg = unpadded_data.decode('utf-8')
-
-    # Same as above
-    elif(cipher_type == 'aes256'):
-        data = client.recv(size)
-
-        backend = default_backend()
-
-        cipher = Cipher(algorithms.AES(sess_key), modes.CBC(iv), backend=backend)
-        decryptor = cipher.decryptor()
-        decrypted_data = decryptor.update(data) + decryptor.finalize()
-        print("Server is saying:" + str(decrypted_data), file=sys.stderr)
-
-        unpadder = padding.PKCS7(128).unpadder()
-        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
-        msg = unpadded_data.decode('utf-8')
-    print("Server saying: " + msg)
     return msg
 
 def encrypt(msg):
@@ -128,7 +172,7 @@ if __name__ == "__main__":
         client.sendall((cipher + "," + nonce).encode('utf-8'))
         
         # Receive challenge from client
-        data = recv(128, cipher)
+        data = recv(16, cipher)
         
         # Create a hash and prove to the server that you have the knowledge of the key
         auth_data = (data + key).encode('utf-8')
@@ -148,29 +192,24 @@ if __name__ == "__main__":
             if(command == "read"):
                 # Read the information sent by the server and write it to an standard output
                 while True:
-                    result = recv(128, cipher)
-                    send(result, cipher)
-                    if(result == "Something went wrong"):
+                    result = recvData(128, cipher)
+                    if(result == "Error: FDNE"):
                         print("File could not be successfully downloaded. Program Exiting...", file=sys.stderr)
                         sys.exit()
-                    elif(result == "OK"):
+                    elif(result == "Done"):
                         print("File successfully downloaded.", file=sys.stderr)
                         sys.exit()
                     else:
-                        print(result),
+                        print(result, end='')
             elif(command == "write"):
                 # Read the information from standard input and send it to the server
                 for line in sys.stdin:
-                    send(line, cipher)
-                    response = recv(128, cipher)
-                    if(response != line):
-                        print("File could not be successfully uploaded. Program Exiting...", file=sys.stderr)
-                        sys.exit()
-                send("OK", cipher)
+                    sendData(line, cipher)
+                sendData("Done", cipher)
                 result = recv(128, cipher)    
-                if(result == "OK"):
+                if(result == "Done"):
                     print("File successfully uploaded.", file=sys.stderr)
                 else:
-                    print(result, file=sys.stderr)
+                    print("File could not be successfully uploaded. Program Exiting...", file=sys.stderr)
         else:
             pass
