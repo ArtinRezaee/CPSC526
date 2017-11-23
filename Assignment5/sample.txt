@@ -1,7 +1,6 @@
-Supported commands are:
-pwd,cd,ls,rm,cat,logout,off,cp,mv,net,snap,diff,1more
-test
-a
-a
-a
-a
+in accept 136.159.0.0/16 22,80
+in accept * * established
+in reject * *
+out accept * * random
+#Helloworld
+out accept * * established
