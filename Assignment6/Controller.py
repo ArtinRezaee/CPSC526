@@ -5,7 +5,7 @@ import sys
 
 def do_status(client, args):
     global secret
-    client.sendAll(secret + ', show')
+    client.sendall('show')
     botList = client.recv(16).decode('utf-8')
     print(botList)
 
@@ -43,22 +43,29 @@ if __name__ == "__main__":
         while True:
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect((HOST,srcPort))
-            while True:
-                # Recieve data from client
-                data = input("Please enter your command:")
-                # Interpret user info by matching it with one of the definitions in the variable
-                args = data.split()
-#                if args[0] == "off":
-#                    do_off(server,client_socket,args)
-#                elif args[0] == "logout":
-#                    do_logout(client_socket,args)
-#                    loggedIn = False
-#                    break
-#                else:
-                if not args[0] in interpretInput:
-                    print('No such command\n')
-                else:
-                    interpretInput[args[0]](client,args)
+            client.sendall(('JOIN '+channel).encode('utf-8'));
+            client.sendall(secret.encode('utf-8'))
+            response = client.recv(16).decode('utf-8')
+            if response == 'ok':
+                while True:
+                    # Recieve data from client
+                    data = input("Please enter your command:")
+                    # Interpret user info by matching it with one of the definitions in the variable
+                    args = data.split()
+    #                if args[0] == "off":
+    #                    do_off(server,client_socket,args)
+    #                elif args[0] == "logout":
+    #                    do_logout(client_socket,args)
+    #                    loggedIn = False
+    #                    break
+    #                else:
+                    if not args[0] in interpretInput:
+                        print('No such command\n')
+                    else:
+                        interpretInput[args[0]](client,args)
+            else:
+                client.close()
+                sys.exit()
     except Exception as err:
         print(err)
 
