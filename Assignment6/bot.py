@@ -26,22 +26,54 @@ def do_attack(client, args, id, controller):
         botClient.close()
     except socket.error:
         sendPrivMSG(controller, 'bot'+id+': attack unsuccessful, connection refused')
-
-    
-
-    
     print("attack", args[1], args[2])
 
-def do_move(client, args):
+def do_move(client, args, id, controller):
+    for _ in range(5):
+        try:
+            newClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            newClient.connect((args[1],int(args[2])))
+        except socket.error:
+            print('Connection refused. Trying again...')
+            continue
+        print('Connected.')
+        while True:
+            print(id)
+            newClient.send(('NICK bot'+id+'\n').encode('utf-8'))
+            try:
+                newClient.settimeout(4)
+                data = newClient.recv(1024).decode('utf-8')
+                print ('IRC said:', data)
+                if not data == 'ERR_NICKNAMEINUSE':
+                    break
+            except socket.timeout:
+                break
+            id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        newClient.settimeout(None)
+        newClient.send(('USER bot * * :Bot BotMacBotFace\n').encode('utf-8'))
+        data = newClient.recv(1024).decode('utf-8')
+        print('response: ',data)
+        if not '001' in data:
+            print('You are not welcome')
+            continue
+        newClient.send(('JOIN '+args[3][1:]+'\n').encode('utf-8'))
+        data = newClient.recv(1024).decode('utf-8')
+        if not '331' in data and not '332' in data:
+            print('Could not connect to channel.')
+            continue
+        else:
+            print('Joined new channel.')
+            sendPrivMSG(controller, 'bot'+id+': move successful')
+            client.send(('QUIT\n').encode('utf-8'))
+            client.close()
+            return
     print("bots connect to the new IRC server")
 
-def do_quit(client, args):
+def do_quit(client, args, id, controller):
     client.close()
 
-def do_shutdown(client, args):
+def do_shutdown(client, args, id, controller):
     print("shutdown the bots")
-
-
 
 # Structure so that the program can look into to decide which method to call based on user specified argument
 interpretInput = {
@@ -62,7 +94,6 @@ if __name__ == "__main__":
     srcPort = int(sys.argv[2])
     channel = sys.argv[3][1:]
     secret = sys.argv[4]
-    
     while True:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((HOST,srcPort))
@@ -75,7 +106,7 @@ if __name__ == "__main__":
                 client.settimeout(4)
                 data = client.recv(128).decode('utf-8')
                 print ('IRC said:', data)
-                if not data == 'ERR_NICKNAMEINUSE':
+                if not '433' in data:
                     break
             except socket.timeout:
                 break
@@ -99,7 +130,7 @@ if __name__ == "__main__":
             for line in lines:
                 print("A message from server:", data)
                 messages = line.split(':')
-                
+
                 if len(messages) < 3:
                     continue
                 else:

